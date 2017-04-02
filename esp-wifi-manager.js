@@ -44,8 +44,8 @@ let handleRequest=function(req, res) {
 let onWifiError=function(){
   console.log("ERROR wifi")
   print(process.memory());
-  wifi.setHostname("aurora")
-  wifi.startAP("aurora", {}, function(err){
+  wifi.setHostname("espruino-wifi")
+  wifi.startAP("espruino-wifi", {}, function(err){
     if(err) {
         console.log("An error has occured :( ", err.message);
     } else {
@@ -56,9 +56,9 @@ let onWifiError=function(){
   })
 }
 let check_wifi=function(){
-  var timer=setInterval(function(){
+  var timer = setInterval(function(){
     wifi.getDetails(function(obj){
-      console.log("status:", obj.status)
+      console.log("status:", obj)
       if(obj.status=="no_ap_found" || obj.status=="wrong_password" || obj.status=="off" || obj.status=="connect_failed"){
         //can't find saved WIFI, creating access point
         onWifiError()
@@ -94,7 +94,6 @@ let start_wifi=function(ssid, passw, callback){
       }
     });
   }
-
 }
 const read=function(pos){
   let p=f.read(pos);
@@ -109,21 +108,4 @@ export default conn=function(callback){
     digitalWrite(D2, true);
     callback()
   })
- //  console.log("WIFI");
- //  print(process.memory());
- //  console.log("ssid", ssid)
- //  console.log("pass", ssid)
- //  if(ssid){
- //    console.log("HERE?");
- //    wifi.connect(ssid, { password: pass }, function(e){
- //      console.log("connected");
- //      if (e){
- //        onWifiError(e)
- //      }else{
- //        console.log("connected");
- //        digitalWrite(D2, true)
- //        callback()
- //      }
- //   });
- // }
 }
