@@ -25,7 +25,7 @@ function main() {
 - After the first boot, the LED will turn on and the Espruino will create an access point called "espruino-wifi".
 
 ![Wifi](./screens/_wifi.png)
-- Connect to it via your PC or mobile phone, you will see a simple configuration page to enter the SSID and Password;
+- Connect to it via your PC or mobile phone, go to 192.168.4.1 and you will see a simple configuration page to enter the SSID and Password;
 
 ![HTML](./screens/_html.png)
 - Now the espruino will connect to the wifi, turn off the LED, save SSID and Password on Flash (position 0 and 1 of FlashEEPROM) and reboot.
