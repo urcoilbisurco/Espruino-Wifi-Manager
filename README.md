@@ -2,8 +2,10 @@
 A library to handle the wifi setup of new objects. Uses FlashEEPROM module to store variables.
 
 # Usage
-First, import "esp-wifi-manager.js" inside your project.
-This is a modified version of ThingsSDK "Hello World" with Espruino WIFI Manager. The led will blink only after it is connected to the wifi access point.
+Import "esp-wifi-manager.js" inside your project, then wrap your code in a function inside conn.
+
+# Demo
+In the folder demo there is a modified version of ThingsSDK "Hello World" with Espruino WIFI Manager. The led will blink only after it is connected to the wifi access point.
 
 ```javascript
 import conn from "./esp-wifi-manager.js"; //import the library
