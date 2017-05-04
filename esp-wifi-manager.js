@@ -1,111 +1,158 @@
 const wifi = require('Wifi');
-var f = new (require("FlashEEPROM"))();
+const f = new (require("FlashEEPROM"))();
 
-let parseRequestData = function(str){
-  return str.split("&").reduce(function(prev, curr, i, arr) {
-    var p = curr.split("=");
-    prev[decodeURIComponent(p[0])] = decodeURIComponent(p[1]);
-    return prev;
-  }, {});
-}
-
-let handleRequest=function(req, res) {
-  print(process.memory());
-  if (req.method=="POST"){
-    obj=parseRequestData(req.read())
-    res.writeHead(200, {'Content-Type': 'text/html'});
-    res.end(`<html><meta name="viewport" content="width=device-width, initial-scale=1"><style>body *{padding:8px;display:block;}</style><div><h1>Thank you.</h1><h2>You can now close this page and restore your Wi-Fi connection.</h2></div></html>`);
-    setTimeout(function(){
-      wifi.stopAP();
-      start_wifi(obj.ssid, obj.pssw);
-      digitalWrite(D2, false)
-    }, 3000)
-  }else{
-    wifi.scan(function(ns){
-      print(process.memory());
-      var out=`
-      <html><meta name="viewport" content="width=device-width, initial-scale=1"><style>body *{font-size:24px;padding:8px;display:block;}</style><body>`
-      out = out+`<form method="POST" action="/"><label for="s">Choose Wifi</label><select name="ssid" id="s">`
-      out=out+ns.map(function(n) {
-        return '<option value="'+n.ssid+'">'+n.ssid+'</option>';
-      });
-      print(process.memory());
-      out=out+`</select><label for="p">Password</label><input id="p" name="pssw" type="password"/><input type="submit" value="Save"></form>`;
-      out=out+"</body></html>"
-      //console.log("connected...");
-      print(process.memory());
-      res.writeHead(200, {'Content-Type':'text/html'});
-      res.end(out);
-    });
-  }
-}
-
-//start AP and web server
-let onWifiError=function(){
-  console.log("ERROR wifi")
-  print(process.memory());
-  wifi.setHostname("espruino-wifi")
-  wifi.startAP("espruino-wifi", {}, function(err){
-    if(err) {
-        console.log("An error has occured :( ", err.message);
-    } else {
-      require("http").createServer(handleRequest).listen(80);
-      console.log("Visit http://" + wifi.getIP().ip, "in your web browser.");
-      print(process.memory());
+//Library for instant feedback using a led
+export L={
+  init:(pin)=>{
+    L.pin=pin
+  },
+  write:(w)=>{
+    digitalWrite(L.pin,w);
+  },
+  reset:()=>{
+    if(L.i){
+      clearInterval(L.i);
+      L.i=undefined;
     }
-  })
-}
-let check_wifi=function(){
-  var timer = setInterval(function(){
-    wifi.getDetails(function(obj){
-      console.log("status:", obj)
-      if(obj.status=="no_ap_found" || obj.status=="wrong_password" || obj.status=="off" || obj.status=="connect_failed"){
-        //can't find saved WIFI, creating access point
-        onWifiError()
-        clearInterval(timer);
+  },
+  turn:(s)=>{
+    L.reset()
+    L.write(!s);
+  },
+  blink:(times,t=500)=>{
+    L.reset();
+    L.ledOn=false;
+    L.times=0;
+    L.i=setInterval(()=>{
+      L.write(L.ledOn);
+      L.ledOn=!L.ledOn;
+      L.times=L.times+1;
+      if(L.times==times*2){
+        L.reset()
       }
-      if(obj.status=="connected"){
-        console.log(`Connected to: ${ wifi.getIP().ip }`)
-        clearInterval(timer);
-      }
-    })
-  }, 1000)
-}
-
-let start_wifi=function(ssid, passw, callback){
-  check_wifi();
-  console.log("start_wifi");
-  if(ssid){
-    wifi.connect(ssid, { password: passw}, function(error) {
-      if(error){
-        //Bad Password
-        onWifiError();
-      }else{
-        console.log(`Connected to: ${ wifi.getIP().ip }`)
-        if(callback){
-          callback()
-        }else{
-          f.write(0, ssid);
-          f.write(1, passw);
-          //I have the right ssid and pass, reboot
-          console.log("rebooting...")
-          load()
-        }
-      }
-    });
+    },t)
   }
 }
-const read=function(pos){
-  let p=f.read(pos);
-  return (p!=undefined ? E.toString(p) : undefined)
-}
 
-export default conn=function(callback){
-  digitalWrite(D2, false)
-  let ssid=read(0);
-  let pass=read(1);
-  start_wifi(ssid, pass, function(){
-    digitalWrite(D2, true);
-    callback()
-  })
+
+
+export default C={
+  handleRequest: (req,res)=>{
+    if (req.method=="POST") {
+      req.on("close", function(){
+        obj=C.parse(req.read())
+        if(obj.s){
+          setTimeout(() => {
+            wifi.stopAP();
+            C.start_wifi(obj.s, obj.p);
+            L.turn(false);
+          }, 3000)
+        }
+      })
+      res.writeHead(200);
+      res.end(`<html><h2>You can now close this page and restore your Wi-Fi connection.</h2></html>`);
+    }else{
+      wifi.scan(ns => {
+        let out=`<html><style>body *{font-size:24px;padding:8px;display:block;}</style><meta name="viewport" content="width=device-width, initial-scale=1"><form method="POST" action="/"><label for="s">Choose Wifi</label><br/><select name="s" id="s">`
+        out=out+ns.map(n => '<option value="'+n.ssid+'">'+n.ssid+'</option>');
+        out=out+`</select><label>Password</label><input id="p" name="p" type="text"/><input type="submit" value="save"></form>`;
+        out=out+"</html>"
+        res.writeHead(200);
+        res.end(out);
+      });
+    }
+  },
+  parse:(s)=>{
+    return s.split("&").reduce((prev, c)=> {
+      let p = c.split("=");
+      prev[decodeURIComponent(p[0])] = decodeURIComponent(p[1]);
+      return prev;
+    }, {});
+  },
+  start_setup:()=>{
+    C.reboot=false;
+    print(process.memory());
+    wifi.setHostname("espruino-wifi")
+    wifi.startAP("espruino-wifi", {}, err => {
+      require("http").createServer(C.handleRequest).listen(80);
+      L.turn(true)
+      print(process.memory());
+    })
+  },
+  check_wifi:()=>{
+    var ct=setInterval(()=>{
+      wifi.getDetails(obj =>{
+        console.log(obj.status);
+        print(process.memory());
+        if(obj.status=="no_ap_found" || obj.status=="wrong_password" || obj.status=="off" || obj.status=="connect_failed"){
+          C.error()
+          clearInterval(ct);
+        }
+        if(obj.status=="connected"){
+          clearInterval(ct);
+        }
+      })
+    },1000)
+  },
+
+  error:()=>{
+    console.log("ERROR")
+    if(C.pin){
+      C.reboot=true;
+      print(process.memory());
+      L.blink(2, 700);
+      setTimeout(()=>{
+        if(C.reboot){load()};
+      }, 10000)
+    }else{
+      C.start_setup();
+    }
+  },
+  start_wifi:(ssid, passw, callback)=>{
+    C.check_wifi()
+    L.turn(true)
+    if(ssid){
+      wifi.connect(ssid, { password: passw}, function(error) {
+        if(error){
+          //Bad Password
+          C.error();
+        }else{
+          console.log(`Connected to: ${ wifi.getIP().ip }`)
+          if(callback){
+            callback()
+            L.blink(5)
+          }else{
+            f.erase();
+            f.write(0, ssid);
+            f.write(1, passw);
+            //I have the right ssid and pass, reboot
+            console.log("rebooting...")
+            load()
+
+          }
+        }
+      });
+    }
+  },
+  read:(pos)=>{
+    let p=f.read(pos);
+    return (p!=undefined ? E.toString(p) : undefined)
+  },
+  init:(led, cb)=>{
+    L.init(led);
+    C.check_wifi();
+    let ssid=C.read(0)
+    let pass=C.read(1)
+    console.log("saved ssid:", ssid)
+    console.log("saved pass:", pass)
+    start_wifi(ssid, pass, function(){
+      callback()
+    })
+    wifi.on("disconnected", C.error);
+  },
+  setupPin:(pin)=>{
+    C.pin=pin;
+    pinMode(pin, 'input_pullup');
+    setWatch(C.start_setup, C.pin, { repeat: true, edge: 'falling', debounce: 50 });
+  }
 }

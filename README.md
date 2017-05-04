@@ -8,15 +8,16 @@ Import "esp-wifi-manager.js" inside your project, then wrap your code in a funct
 In the folder demo there is a modified version of ThingsSDK "Hello World" with Espruino WIFI Manager. The led will blink only after it is connected to the wifi access point.
 
 ```javascript
-import conn from "./esp-wifi-manager.js"; //import the library
+import C from "./esp-wifi-manager.js"; //import the library
 let isOn = false;
 const interval = 500; // 500 milliseconds = 0.5 seconds
+const LED=D2
 
 function main() {
-  conn(function(){
+  C(LED, ()=>{
     setInterval(() => {
         isOn = !isOn; // Flips the state on or off
-        digitalWrite(D2, isOn); // D2 is the blue LED on the ESP8266 boards
+        digitalWrite(LED, isOn); // D2 is the blue LED on the ESP8266 boards
     }, interval);
   })
 }
@@ -32,5 +33,5 @@ function main() {
 - After the first setup, the espruino will try to connect to the saved SSID and call the callback if successfull. If there are some problems (e.g.: can't find the SSID) it will create again the espruino-wifi access point.
 
 # TODO
+- [x] Expose a method to reset connection
 - [ ] Use default Wifi.save() to save SSID and Password instead of FlashEEPROM
-- [ ] Expose a method to reset connection
